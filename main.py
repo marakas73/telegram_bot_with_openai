@@ -1,6 +1,6 @@
 # before starting, you need to change the settings.py file (add the necessary tokens, etc.)
 
-import settings_with_keys
+import settings
 from gpt import ChatGPT
 
 import os # check path exists and remove path
@@ -9,10 +9,10 @@ import telebot # telegram bot library
 
 
 # bot initialization
-bot=telebot.TeleBot(settings_with_keys.BOT_API_TOKEN)
+bot=telebot.TeleBot(settings.BOT_API_TOKEN)
 
 # class with assistant init
-assistant = ChatGPT(settings_with_keys.OPENAI_API_KEY, settings_with_keys.ORG_ID)
+assistant = ChatGPT(settings.OPENAI_API_KEY, settings.ORG_ID)
 
 
 # returns whether the given user had a chat history (bool) and create it if is not
@@ -75,7 +75,7 @@ def start_message(message):
 @bot.message_handler(content_types="text")
 def message_reply(message):
 
-    bot.send_message(
+    response_message = bot.send_message(
         chat_id=message.from_user.id,
         text="Я думаю что ответить..."
     )
@@ -85,13 +85,20 @@ def message_reply(message):
 
     chat_history = get_user_chat_history(user_id)
     
-    new_chat_history = assistant.generate_openai_json_answer(message.text, chat_history)
-
-    bot.edit_message_text(
-        text=new_chat_history[-1]["content"],
-        chat_id=user_id,
-        message_id=message.id+1
-    )
+    try:
+        new_chat_history = assistant.generate_openai_json_answer(message.text, chat_history)
+    except: # any error
+        bot.edit_message_text(
+            text="Произошла ошибка, попробуйте позже.",
+            chat_id=user_id,
+            message_id=response_message.message_id
+        )
+    else: # if no error
+        bot.edit_message_text(
+            text=new_chat_history[-1]["content"],
+            chat_id=user_id,
+            message_id=response_message.message_id
+        )
 
     save_new_chat_history(user_id, new_chat_history)
 
